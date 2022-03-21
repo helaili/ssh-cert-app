@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "start": "probot run ./index.js",
+    "ngrok": "ngrok http -subdomain=ssh-cert-app 3000",
     "test": "jest"
   },
   "dependencies": {

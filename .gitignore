@@ -1,7 +1,9 @@
 node_modules
 npm-debug.log
 *.pem
+*.pub
 !mock-cert.pem
 .env
 coverage
 lib
+.DS_Store
