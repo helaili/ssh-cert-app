@@ -9,6 +9,7 @@ const bodyParser = require('body-parser')
  */
 module.exports = (app, { getRouter }) => {
   app.log.info('Starting SSH Certificate Broker')
+  // Keep track of the mapping between generated ceritficates and session keys
   const generatedCerts = {}
   const certFile = process.env['CERT_FILE']
   const certDuration = process.env['CERT_DURATION']
@@ -24,7 +25,7 @@ module.exports = (app, { getRouter }) => {
 
     if (generatedCerts[req.body.sessionToken]) {
       const filenamePrefix = generatedCerts[req.body.sessionToken].pubKeyFileName.split('.')[0]
-      fs.readFile(`${__dirname}/${req.body.sessionToken}/${filenamePrefix}-cert.pub`, 'utf8', (err,data) => {
+      fs.readFile(`${__dirname}/certs/${req.body.sessionToken}/${filenamePrefix}-cert.pub`, 'utf8', (err,data) => {
         if (err) {
           app.log.debug(err)
           res.status(404).send({message: 'Certificate not found'})
@@ -34,7 +35,7 @@ module.exports = (app, { getRouter }) => {
 
           // Let's clean up memory and disk
           delete generatedCerts[req.body.sessionToken]
-          fs.rmdir(`${__dirname}/${req.body.sessionToken}`, { recursive: true, force: true }, (err) => {
+          fs.rmdir(`${__dirname}/certs/${req.body.sessionToken}`, { recursive: true, force: true }, (err) => {
             if (err) {
               app.log.error(err)
             }
@@ -46,20 +47,16 @@ module.exports = (app, { getRouter }) => {
     }
   })
 
+  /*
+   * Generate a certificate when receiving a repository dispatch event on a repo. 
+   * This ensure that the requester has write access to the repo
+   */
   app.on("repository_dispatch", async (context) => {
     app.log.debug({ event: context.name, action: context.payload.action, sender: context.payload.sender.login, payload: context.payload.client_payload })
     
-    if (!fs.existsSync(`${__dirname}/${context.payload.client_payload.sessionToken}`)) {
-      fs.mkdirSync(`${__dirname}/${context.payload.client_payload.sessionToken}`, (err) => {
-        if (err) {
-          app.log.error(err)
-          return err
-        }
-        app.log.debug(`Directory ${__dirname}/${context.payload.client_payload.sessionToken} is created.`);
-      })
-    }
-  
-    const sshKeyFile = `${__dirname}/${context.payload.client_payload.sessionToken}/${context.payload.client_payload.pubKeyFileName}`
+    fs.mkdirSync(`${__dirname}/certs/${context.payload.client_payload.sessionToken}`, { recursive: true })
+    
+    const sshKeyFile = `${__dirname}/certs/${context.payload.client_payload.sessionToken}/${context.payload.client_payload.pubKeyFileName}`
     fs.writeFileSync(sshKeyFile, context.payload.client_payload.key)
     fs.close
 
@@ -78,7 +75,7 @@ module.exports = (app, { getRouter }) => {
     }
 
     // Sign the key
-    const script = exec(`cd ${__dirname}/${context.payload.client_payload.sessionToken} && ssh-keygen ${args.join(' ')}`)
+    const script = exec(`cd ${__dirname}/certs/${context.payload.client_payload.sessionToken} && ssh-keygen ${args.join(' ')}`)
     script.stdout.on('data', function(data){
       app.log.debug(data.toString());
     })
