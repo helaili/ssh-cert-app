@@ -1,6 +1,6 @@
 # ssh-cert-app
 
-> A GitHub App built with [Probot](https://github.com/probot/probot) that A companion app for the gh extension gh-ssh-cert to generate ssh certifcates for GitHub
+A companion app built with [Probot](https://github.com/probot/probot) for the gh extension [gh-ssh-cert](https://github.com/helaili/gh-ssh-cert) to generate ssh certifcates for GitHub
 
 ## Setup
 
